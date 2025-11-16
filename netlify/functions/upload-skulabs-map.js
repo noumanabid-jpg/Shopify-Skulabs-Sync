@@ -2,6 +2,31 @@ import { getStore } from "@netlify/blobs";
 
 const SKU_MAP_BLOB_KEY = "sku-warehouse-location-map.json";
 
+// Simple CSV splitter that handles "quoted,values"
+function splitCsvLine(line) {
+  const cols = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (ch === "," && !inQuotes) {
+      cols.push(current.trim());
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  cols.push(current.trim());
+  return cols;
+}
+
 function parseCsv(text) {
   const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (!lines.length) return [];
@@ -10,9 +35,8 @@ function parseCsv(text) {
   const headerLine = lines[0].replace(/^\uFEFF/, "");
   const dataLines = lines.slice(1);
 
-  const headers = headerLine.split(",").map((h) => h.trim());
+  const headers = splitCsvLine(headerLine).map((h) => h.trim());
 
-  // helper: find index where header name contains a keyword
   const findIndex = (keyword) => {
     const kw = keyword.toLowerCase();
     return headers.findIndex((h) => h.toLowerCase().includes(kw));
@@ -32,10 +56,14 @@ function parseCsv(text) {
   const rows = [];
 
   for (const line of dataLines) {
-    const cols = line.split(",");
-    const sku = (cols[idxSKU] || "").trim().toUpperCase();
-    const warehouse = (cols[idxWarehouse] || "").trim();
-    const location = (cols[idxLocation] || "").trim();
+    const cols = splitCsvLine(line);
+    const rawSku = cols[idxSKU] || "";
+    const rawWarehouse = cols[idxWarehouse] || "";
+    const rawLocation = cols[idxLocation] || "";
+
+    const sku = rawSku.trim().toUpperCase();
+    const warehouse = rawWarehouse.trim();
+    const location = rawLocation.trim();
 
     if (!sku || !warehouse || !location) continue;
 
@@ -76,7 +104,7 @@ export const handler = async (event) => {
     const map = {};
 
     for (const r of rows) {
-      const sku = r.SKU;
+      const sku = r.SKU; // already uppercased
       const warehouse = r.Warehouse;
       const location = r.Location;
 
