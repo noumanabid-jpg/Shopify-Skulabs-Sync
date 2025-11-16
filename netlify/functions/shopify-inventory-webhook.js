@@ -50,14 +50,30 @@ async function lookupVariantByInventoryItemId(inventoryItemId) {
 
   const data = await res.json();
   const variants = data.variants || [];
-  if (!variants.length) return null;
+  if (!variants.length) {
+    console.warn("No variants returned for inventory_item_id", {
+      inventoryItemId,
+    });
+    return null;
+  }
 
   const variant = variants[0];
   const sku = (variant.sku || "").trim().toUpperCase();
-  if (!sku) return null;
+  if (!sku) {
+    console.warn("Variant has no SKU", { variantId: variant.id });
+    return null;
+  }
 
   const warehouseKey =
     (variant.title || variant.option1 || "").trim() || "Default";
+
+  console.log("Resolved variant", {
+    inventoryItemId,
+    sku,
+    warehouseKey,
+    variantId: variant.id,
+    productId: variant.product_id,
+  });
 
   return { sku, warehouseKey };
 }
@@ -76,6 +92,8 @@ async function skulabsBulkUpsertSingle({ sku, warehouse, location, on_hand }) {
     ],
   };
 
+  console.log("Calling SKU Labs bulk_upsert", payload);
+
   const res = await fetch(url.toString(), {
     method: "PUT",
     headers: {
@@ -87,8 +105,11 @@ async function skulabsBulkUpsertSingle({ sku, warehouse, location, on_hand }) {
 
   if (!res.ok) {
     const text = await res.text();
+    console.error("[SKU Labs bulk_upsert] error", res.status, text);
     throw new Error(`[SKU Labs bulk_upsert] ${res.status}: ${text}`);
   }
+
+  console.log("SKU Labs bulk_upsert success");
 }
 
 export const handler = async (event) => {
@@ -102,17 +123,26 @@ export const handler = async (event) => {
       "";
     const rawBody = event.body || "";
 
+    console.log("Incoming Shopify webhook", {
+      topic,
+      contentLength: rawBody.length,
+    });
+
     if (!verifyShopifyHmac(rawBody, hmac)) {
+      console.warn("Invalid HMAC for webhook");
       return { statusCode: 401, body: "Invalid HMAC" };
     }
 
     if (topic !== "inventory_levels/update") {
+      console.log("Ignoring non-inventory topic", { topic });
       return { statusCode: 200, body: "Ignored topic" };
     }
 
     const payload = JSON.parse(rawBody);
     const inventory_item_id = String(payload.inventory_item_id ?? "");
     const available = Number(payload.available ?? 0);
+
+    console.log("Inventory payload", { inventory_item_id, available });
 
     if (!inventory_item_id || !Number.isFinite(available)) {
       console.warn("Missing inventory_item_id or available", {
@@ -175,6 +205,13 @@ export const handler = async (event) => {
       });
       return { statusCode: 200, body: "No location entry; skipped" };
     }
+
+    console.log("Using mapping", {
+      sku,
+      warehouseKey,
+      skulabsWarehouseName,
+      location: entry.location,
+    });
 
     await skulabsBulkUpsertSingle({
       sku,
