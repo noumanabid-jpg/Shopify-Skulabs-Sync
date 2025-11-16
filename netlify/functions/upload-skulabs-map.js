@@ -33,7 +33,7 @@ function parseCsv(text) {
 
   for (const line of dataLines) {
     const cols = line.split(",");
-    const sku = (cols[idxSKU] || "").trim();
+    const sku = (cols[idxSKU] || "").trim().toUpperCase();
     const warehouse = (cols[idxWarehouse] || "").trim();
     const location = (cols[idxLocation] || "").trim();
 
