@@ -53,7 +53,7 @@ async function lookupVariantByInventoryItemId(inventoryItemId) {
   if (!variants.length) return null;
 
   const variant = variants[0];
-  const sku = (variant.sku || "").trim();
+  const sku = (variant.sku || "").trim().toUpperCase();
   if (!sku) return null;
 
   const warehouseKey =
