@@ -6,20 +6,25 @@ function parseCsv(text) {
   const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (!lines.length) return [];
 
-  const [headerLine, ...dataLines] = lines;
+  // Remove UTF-8 BOM if present
+  const headerLine = lines[0].replace(/^\uFEFF/, "");
+  const dataLines = lines.slice(1);
+
   const headers = headerLine.split(",").map((h) => h.trim());
 
-  const idxSKU = headers.findIndex((h) => h.toLowerCase() === "sku");
-  const idxWarehouse = headers.findIndex(
-    (h) => h.toLowerCase() === "warehouse"
-  );
-  const idxLocation = headers.findIndex(
-    (h) => h.toLowerCase() === "location"
-  );
+  // helper: find index where header name contains a keyword
+  const findIndex = (keyword) => {
+    const kw = keyword.toLowerCase();
+    return headers.findIndex((h) => h.toLowerCase().includes(kw));
+  };
+
+  const idxSKU = findIndex("sku");
+  const idxWarehouse = findIndex("warehouse");
+  const idxLocation = findIndex("location");
 
   if (idxSKU === -1 || idxWarehouse === -1 || idxLocation === -1) {
     throw new Error(
-      "CSV must have at least SKU, Warehouse, Location columns (case-insensitive)"
+      "CSV must have at least columns containing 'SKU', 'Warehouse', and 'Location' in their names (case-insensitive)"
     );
   }
 
@@ -76,7 +81,6 @@ export const handler = async (event) => {
       const location = r.Location;
 
       if (!map[sku]) map[sku] = {};
-      // If there are multiple locations for same SKU+warehouse, keep the first one
       if (!map[sku][warehouse]) {
         map[sku][warehouse] = { warehouse, location };
       }
