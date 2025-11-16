@@ -1,0 +1,7 @@
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/webhooks/shopify/inventory"
+  to = "/.netlify/functions/shopify-inventory-webhook"
+  status = 200

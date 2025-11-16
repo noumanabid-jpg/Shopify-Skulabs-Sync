@@ -1,0 +1,12 @@
+{
+  "name": "shopify-skulabs-sync",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "netlify dev"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^6.0.0"
+  }
+}
